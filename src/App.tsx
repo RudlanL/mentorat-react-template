@@ -1,54 +1,100 @@
-import { useState } from 'react';
-import PokemonItemList from './PokemonItem';
-
-function createPokemon(id: number) {
-  return {
-    id: id,
-    name: 'pokemon',
-    url: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`,
-  };
+import { Pokemon } from 'pokenode-ts';
+import { useEffect, useRef, useState } from 'react';
+import { getPokemonById } from './pokemonApi';
+interface MessageProps {
+  success: boolean;
+  failure: boolean;
+}
+function randomPokemonId(): number {
+  return Math.round(random(0, 150));
 }
 
-function createPokemons(offset: number, count: number) {
-  return [...new Array(count)].map((v, i) => createPokemon(offset + i));
+function random(min: number, max: number) {
+  return min + Math.random() * (max - min);
 }
-
+function Message(props: MessageProps) {
+  if (props.failure) {
+    return <div>Dommage</div>;
+  } else if (props.success) {
+    return <div>Bravo</div>;
+  }
+  return <div></div>;
+}
 function App() {
-  const pokemonsList = createPokemons(1, 3);
-  const [pokemons, setPokemons] = useState(pokemonsList);
+  const [score, setScore] = useState(0);
+  const [next, setNext] = useState(0);
+  const [success, setSuccess] = useState(false);
+  const [failure, setFailure] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [pokemon, setPokemon] = useState<Pokemon | null>();
+  const [history, setHistory] = useState<number[]>([]);
+  useEffect(() => {
+    const id = randomPokemonId();
+    if (!history.includes(id)) {
+      getPokemonById(id).then((res) => {
+        setPokemon(res);
+        console.log(res.name);
+      });
+      setHistory([...history, id]);
+    }
+  }, [next]);
+  useEffect(() => {
+    if (success) {
+      setFailure(false);
+    }
+  }, [success, failure]);
+  useEffect(() => {
+    if (failure) {
+      setSuccess(false);
+    }
+  }, [failure]);
   return (
     <>
-      <header className="header">Pokedex</header>
-      <main className="main">
-        <div className="tools">
+      <header>Poke Guesser</header>
+      <main>
+        <div>Score : {score}</div>
+        <div>
+          <img
+            style={{ filter: 'brightness(0)' }}
+            src={
+              pokemon?.sprites?.other?.dream_world.front_default ?? undefined
+            }
+            alt=""
+          />
+        </div>
+        <div>
+          <input aria-label="Search" ref={inputRef} type="text" name="search" />
+        </div>
+        <Message success={success} failure={failure} />
+        <div>
           <button
-            className="show-more"
             onClick={() => {
-              setPokemons([...pokemons, createPokemon(pokemons.length + 1)]);
+              if (!success) {
+                if (inputRef?.current?.value !== '') {
+                  if (pokemon?.name === inputRef?.current?.value) {
+                    setScore((previous) => previous + 1);
+                    setSuccess(true);
+                  } else {
+                    setFailure(true);
+                    setScore(0);
+                  }
+                }
+              }
             }}
           >
-            Voir plus
+            Valider
           </button>
-          <div className="shiny">
-            <label htmlFor="shiny-checkbox">shiny</label>
-            <input id="shiny-checkbox" type="checkbox" />
-          </div>
-        </div>
-        <div
-          className="list"
-          // onWheel={(e) => {
-          //   if (e.deltaY >= 0) {
-          //     setPokemons([...pokemons, createPokemon(pokemons.length + 1)]);
-          //   }
-          // }}
-        >
-          {pokemons.map((pokemon) => (
-            <PokemonItemList
-              id={pokemon.id}
-              label={pokemon.name}
-              url={pokemon.url}
-            />
-          ))}
+          <button
+            onClick={() => {
+              if (success) {
+                setNext((previous) => previous + 1);
+                setSuccess(false);
+                setFailure(false);
+              }
+            }}
+          >
+            Suivant
+          </button>
         </div>
       </main>
     </>
